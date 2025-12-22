@@ -1,0 +1,130 @@
+import express from 'express'
+const users_Router = express.Router();
+import dotenv from 'dotenv'
+import bcrypt from 'bcryptjs'
+import zod from 'zod'
+dotenv.config();
+import jwt from 'jsonwebtoken'
+import user_model from '../db.js/userSchema.js';
+
+const JWT_SECRET  =process.env.JWT_SECRET;
+
+
+const signup_zod = zod.object({
+    email : zod.email(),
+    firstName :zod.string(),
+    lastName :zod.string(),
+    password :zod.string()
+})
+
+
+users_Router.post("/signin" , async(req,res)=>{
+
+    try{
+
+        const {email , password}  = req.body;
+
+       
+        
+        
+        if(!email || !password){
+            return res.status(400).json({
+                message : "Credentails not found.."
+            })
+        }
+
+        const email_check = await  user_model.findOne({email : email});
+
+        if(!email_check){
+            return res.status(404).json({
+                message : 'Email not found please register'
+            })
+        }
+
+        const password_check = await bcrypt.compare(password , email_check.password);
+
+
+        if(!password_check){
+            return res.status(400).json({
+                message : "Password is wrong"
+            })
+        }
+
+        const details = {"user_id" : email_check._id , "firstName":email_check.firstName , "email" : email_check.email , "lastName" : email_check.lastName}
+
+        const  token = jwt.sign(details , JWT_SECRET , {expiresIn:"1h"})
+        
+        return res.status(200).json({
+            message : "Login Successfull.",
+            token :token
+        })
+    }
+    catch(er){
+         
+        return res.status(500).json({
+            message :"Internal server Error"
+        })
+    }     
+})
+
+
+users_Router.post("/signup" , async(req,res)=>{
+      
+    try{
+
+        const success = zod.safeParse(req.body);
+        if(!success){
+            return res.status(400).json({
+                message : 'Email already taken / Incorrect Inputs'
+            })
+        }
+
+        const {email , firstName , lastName , password} = req.body;
+
+        const find_email = await user_model.findOne({email : email})
+        if(find_email){
+            return res.status(400).json({
+                message : "Email Already present , please Login"
+            })
+
+
+        }
+
+        const hashed_password = await bcrypt.hash(password , 10);
+
+        const new_user =  new user_model({
+            email,
+            firstName,
+            lastName,
+            password: hashed_password
+
+        })
+
+        await new_user.save();
+
+        return res.status(200).json({
+            message : "User Created Successfully"
+        })
+
+    }
+    catch(er){
+        return res.status(500).json({
+            message : "Internal Server Error",
+            error:er
+        })
+    }
+})
+
+
+
+
+
+
+
+
+
+
+
+
+
+export default users_Router;
