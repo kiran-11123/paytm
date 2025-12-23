@@ -6,6 +6,7 @@ import zod from 'zod'
 dotenv.config();
 import jwt from 'jsonwebtoken'
 import user_model from '../db.js/userSchema.js';
+import Authentication_token from '../middleware/Authentication_token.js';
 
 const JWT_SECRET  =process.env.JWT_SECRET;
 
@@ -15,6 +16,12 @@ const signup_zod = zod.object({
     firstName :zod.string(),
     lastName :zod.string(),
     password :zod.string()
+})
+
+const update_zod  =zod.object({
+     password: zod.string().optional(),
+     firstName:zod.string().optional(),
+     lastName:zpd.string().optional()
 })
 
 
@@ -53,7 +60,13 @@ users_Router.post("/signin" , async(req,res)=>{
         const details = {"user_id" : email_check._id , "firstName":email_check.firstName , "email" : email_check.email , "lastName" : email_check.lastName}
 
         const  token = jwt.sign(details , JWT_SECRET , {expiresIn:"1h"})
-        
+         res.cookie("token", token, {
+            httpOnly: true,
+            secure: true,
+            sameSite: "none",
+           
+        });
+
         return res.status(200).json({
             message : "Login Successfull.",
             token :token
@@ -72,7 +85,7 @@ users_Router.post("/signup" , async(req,res)=>{
       
     try{
 
-        const success = zod.safeParse(req.body);
+        const success = signup_zod.safeParse(req.body);
         if(!success){
             return res.status(400).json({
                 message : 'Email already taken / Incorrect Inputs'
@@ -115,6 +128,36 @@ users_Router.post("/signup" , async(req,res)=>{
     }
 })
 
+
+
+users_Router.put("/update" , Authentication_token , async(req,res)=>{
+      
+    try{
+
+        const success = update_zod.safeParse(req.body)
+
+        if(!success){
+            return res.status(400).json({
+                message :"Error while updating the information"
+            })
+        }
+
+        await user_model.updateOne(req.body , {
+            id :req.user.user_id
+        })
+
+        return res.status(200).json({
+            message : 'Updated the details successfully'
+        })
+
+    }
+    catch(er){
+        return res.status(500).json({
+            message : "Internal Server Error.",
+            error:er
+        })
+    }
+})
 
 
 
