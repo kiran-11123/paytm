@@ -160,6 +160,38 @@ users_Router.put("/update" , Authentication_token , async(req,res)=>{
 })
 
 
+users_Router.get("/filter" , Authentication_token , async(req,res)=>{
+     
+    try{
+
+        const filter = req.query.filter | "";
+
+        const users = await user_model.find({
+             $or:[{
+
+                firstName : {
+                 "$regex":filter
+                },
+            
+             } , {
+                 lastName  :{
+                     "$regex" :filter
+                 }
+             }] 
+        })
+
+        return res.status(200).json({
+            message : "Data fecthed successfully..",
+            users_Data : users
+        })
+    }
+    catch(er){
+         return res.status(500).json({
+            message : "Internal Server Error"
+         })
+    }
+})
+
 
 
 
